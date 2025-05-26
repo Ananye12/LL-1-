@@ -64,3 +64,58 @@ function extractTerminalsAndNonTerminals() {
 
     T.push("$"); // Add end-of-input symbol
 }
+function computeFollowSets() {
+    FOLLOW = {};
+    NT.forEach(nt => (FOLLOW[nt] = new Set()));
+    FOLLOW[NT[0]].add("$"); // Add $ to FOLLOW of start symbol
+
+    let changed;
+    do {
+        changed = false;
+        grammar.forEach(rule => {
+            const [lhs, rhs] = rule.split("->");
+            const productions = rhs.split("|");
+
+            productions.forEach(production => {
+                for (let i = 0; i < production.length; i++) {
+                    const symbol = production[i];
+                    if (NT.includes(symbol)) {
+                        let followAdded = false;
+                        let j = i + 1;
+
+                        while (j < production.length) {
+                            const next = production[j];
+
+                            if (T.includes(next)) {
+                                if (!FOLLOW[symbol].has(next)) {
+                                    FOLLOW[symbol].add(next);
+                                    changed = true;
+                                }
+                                followAdded = true;
+                                break;
+                            } else if (NT.includes(next)) {
+                                const beforeSize = FOLLOW[symbol].size;
+                                FIRST[next].forEach(item => {
+                                    if (item !== "!") FOLLOW[symbol].add(item);
+                                });
+                                if (FOLLOW[symbol].size > beforeSize) changed = true;
+
+                                if (!FIRST[next].has("!")) {
+                                    followAdded = true;
+                                    break;
+                                }
+                            }
+                            j++;
+                        }
+
+                        if (!followAdded && symbol !== lhs) {
+                            const beforeSize = FOLLOW[symbol].size;
+                            FOLLOW[lhs].forEach(sym => FOLLOW[symbol].add(sym));
+                            if (FOLLOW[symbol].size > beforeSize) changed = true;
+                        }
+                    }
+                }
+            });
+        });
+    } while (changed);
+}
